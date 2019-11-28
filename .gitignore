@@ -1,3 +1,4 @@
+dataset/*/*
 simulator/carla
 
 __pycache__/
