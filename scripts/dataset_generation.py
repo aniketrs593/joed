@@ -110,6 +110,7 @@ lidar.listen(
 )
 
 
+
 # Driving right and left some times
 for _ in range(20):
     vehicle_ego.apply_control(
