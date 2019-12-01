@@ -20,6 +20,13 @@ def compute_data_buffer(image):
     array = array[:, :, :3]
     return array
 
+def compute_depth_from_buffer(image):
+    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+    array = np.reshape(array, (image.height, image.width, 4))
+    R, G, B = array[:, :, 2], array[:, :, 1], array[:, :, 0]
+    out = (R.astype(np.uint32) + G.astype(np.uint32)*256 + B.astype(np.uint32)*256*256).astype(np.float64)/(256.0*256.0*256.0 - 1.0)
+    return out.astype(np.float32)
+    
 
 class CarlaSyncMode(object):
     """
@@ -41,7 +48,7 @@ class CarlaSyncMode(object):
         self._settings = None
 
     def __enter__(self):
-        print("CarlaSyncMode.enter")
+        print('CarlaSyncMode.enter')
         self._settings = self.world.get_settings()
         self.frame = self.world.apply_settings(carla.WorldSettings(
             no_rendering_mode=False,
@@ -66,7 +73,7 @@ class CarlaSyncMode(object):
         return data
 
     def __exit__(self, *args, **kwargs):
-        print("CarlaSyncMode.exit")
+        print('CarlaSyncMode.exit')
         self.world.apply_settings(self._settings)
 
     def _retrieve_data(self, sensor_queue, timeout):
@@ -165,7 +172,7 @@ class ClientSideBoundingBoxes(object):
 
     @staticmethod
     def _vehicle_to_world(cords, vehicle):
-        """2
+        """
         Transforms coordinates of a vehicle bounding box to world.
         """
 
@@ -217,7 +224,10 @@ class ClientSideBoundingBoxes(object):
         return matrix
 
 
-def create_camera_sensors(world, vehicle, params):
+
+
+
+def create_camera_sensors(world, vehicle, params, create_all_types=False):
     """
         creates rgb, semantic and depth cameras
         
@@ -232,7 +242,8 @@ def create_camera_sensors(world, vehicle, params):
                 - height: image camera height
                 - fov: camera field of view
                 - x, y, z, roll, pitch, yaw: position of the sensor
-        
+
+            create_all_types: bool - create semantic segmentation and depth camera
         return
         ======
             
@@ -240,21 +251,26 @@ def create_camera_sensors(world, vehicle, params):
         
     """
     blueprint_library = world.get_blueprint_library()
-    transform = carla.Transform(carla.Location(x=params["x"], y=params["y"], z=params["z"]),
-                                carla.Rotation(pitch=params["pitch"], roll=params["roll"], yaw=params["yaw"]))
+    transform = carla.Transform(carla.Location(x=params['x'], y=params['y'], z=params['z']),
+                                carla.Rotation(pitch=params['pitch'], roll=params['roll'], yaw=params['yaw']))
     
     calibration = np.identity(3)
-    calibration[0, 2] = params["width"] / 2.0
-    calibration[1, 2] = params["height"] / 2.0
-    calibration[0, 0] = calibration[1, 1] = params["width"] / (2.0 * np.tan(params["fov"] * np.pi / 360.0))
+    calibration[0, 2] = params['width'] / 2.0
+    calibration[1, 2] = params['height'] / 2.0
+    calibration[0, 0] = calibration[1, 1] = params['width'] / (2.0 * np.tan(params['fov'] * np.pi / 360.0))
     
     output = []
-    
-    for sensor_name in ['sensor.camera.rgb', 'sensor.camera.semantic_segmentation', 'sensor.camera.depth']:
+
+    if create_all_types:
+        sensors = ['sensor.camera.rgb', 'sensor.camera.semantic_segmentation', 'sensor.camera.depth']
+    else:
+        sensors = ['sensor.camera.rgb']
+
+    for sensor_name in sensors:
         bp = blueprint_library.find(sensor_name)
-        bp.set_attribute('image_size_x', str(params["width"]))
-        bp.set_attribute('image_size_y', str(params["height"]))
-        bp.set_attribute('fov', str(params["fov"]))
+        bp.set_attribute('image_size_x', str(params['width']))
+        bp.set_attribute('image_size_y', str(params['height']))
+        bp.set_attribute('fov', str(params['fov']))
         
         cam = world.spawn_actor(bp, transform, attach_to=vehicle)
         cam.calibration = calibration
@@ -284,32 +300,79 @@ def create_lidar_sensor(world, vehicle, params):
         ======
             
             lidar_sensor: carla lidar sensor
-            
     """
     blueprint_library = world.get_blueprint_library()
-    transform = carla.Transform(carla.Location(x=params["x"], y=params["y"], z=params["z"]),
-                                carla.Rotation(pitch=params["pitch"], roll=params["roll"], yaw=params["yaw"]))
+    transform = carla.Transform(carla.Location(x=params['x'], y=params['y'], z=params['z']),
+                                carla.Rotation(pitch=params['pitch'], roll=params['roll'], yaw=params['yaw']))
     
     bp = blueprint_library.find('sensor.lidar.ray_cast')
-    bp.set_attribute('channels', str(params["channels"]))
-    bp.set_attribute('range', str(params["range"]))
-    bp.set_attribute('upper_fov', str(params["upper_fov"]))
-    bp.set_attribute('lower_fov', str(params["lower_fov"]))
+    bp.set_attribute('channels', str(params['channels']))
+    bp.set_attribute('range', str(params['range']))
+    bp.set_attribute('upper_fov', str(params['upper_fov']))
+    bp.set_attribute('lower_fov', str(params['lower_fov']))
 
     return world.spawn_actor(bp, transform, attach_to=vehicle)
 
 
 def create_gnss_sensor(world, vehicle, params):
     blueprint_library = world.get_blueprint_library()
-    transform = carla.Transform(carla.Location(x=params["x"], y=params["y"], z=params["z"]),
-                                carla.Rotation(pitch=params["pitch"], roll=params["roll"], yaw=params["yaw"]))
+    transform = carla.Transform(carla.Location(x=params['x'], y=params['y'], z=params['z']),
+                                carla.Rotation(pitch=params['pitch'], roll=params['roll'], yaw=params['yaw']))
     gnss_bp = blueprint_library.find('sensor.other.gnss')
     return world.spawn_actor(gnss_bp, transform, attach_to=vehicle)
 
 
 def create_imu_sensor(world, vehicle, params):
     blueprint_library = world.get_blueprint_library()
-    transform = carla.Transform(carla.Location(x=params["x"], y=params["y"], z=params["z"]),
-                                carla.Rotation(pitch=params["pitch"], roll=params["roll"], yaw=params["yaw"]))
+    transform = carla.Transform(carla.Location(x=params['x'], y=params['y'], z=params['z']),
+                                carla.Rotation(pitch=params['pitch'], roll=params['roll'], yaw=params['yaw']))
     return world.spawn_actor(blueprint_library.find('sensor.other.imu'), transform, attach_to=vehicle)
+
+
+def sensor_factory(world, vehicle, sensor_list, create_all_camera_types=False):
+    """
+        creates and attach sensors to a vehicle
+
+        parameters
+        ==========
+
+            sensor_list: list with sensor parameters
+            create_all_camera_types: create all types of cameras if true (rgb, semantic segmentation and depth)
+
+        return
+        ======
+
+            sensor_actors: list with all sensor actors attached to the vehicle
+            sensor_labels: list with all sensor labels
+    """
+    sensor_actors = []
+    sensor_labels = []
+
+    for params in sensor_list:
+        
+        if params['sensor_type'] == 'camera':
+            print(">>> Creating camera", params)
+            sensor_actors += create_camera_sensors(world, vehicle, params, create_all_camera_types)
+            
+            if create_all_camera_types:
+                sensor_labels += ['rgb_' + params['sensor_label'], 'semseg_' + params['sensor_label'], 'depth_' + params['sensor_label']]
+            else:
+                sensor_labels += ['rgb_' + params['sensor_label']]
+        
+        elif params['sensor_type'] == 'lidar':
+            print(">>> Creating LIDAR", params)
+            sensor_actors.append(create_lidar_sensor(world, vehicle, params))
+            sensor_labels += ['lidar_' + params['sensor_label']]
+        
+        elif params['sensor_type'] == 'gnss':
+            print(">>> Creating GNSS", params)
+            sensor_actors.append(create_gnss_sensor(world, vehicle, params))
+            sensor_labels += ['gnss_' + params['sensor_label']]
+        
+        elif params['sensor_type'] == 'imu':
+            print(">>> Creating IMU", params)
+            sensor_actors.append(create_imu_sensor(world, vehicle, params))
+            sensor_labels += ['imu_' + params['sensor_label']]
+    
+    return sensor_actors, sensor_labels
 
