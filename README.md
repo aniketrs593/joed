@@ -45,7 +45,8 @@ tar -xf CARLA_0.9.6.tar.gz
 **Start Carla:**
 
 ```bash
-./CarlaUE4.sh
+cd scripts
+./run_carla_server.sh
 ```
 
 One LiDAR sensor and 1-4 cameras are set up in the EGO vehicle.
@@ -59,4 +60,11 @@ python3 dataset_generation.py
 
 The data generated will be stored on the **"./dataset"** folder.
 
+***Visualizing the generated data:**
 
+```bash
+cd scripts
+python3 dataset_visualization.py
+```
+
+![Data Visualization](images/screenshot.png)
