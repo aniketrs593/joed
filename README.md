@@ -60,7 +60,7 @@ python3 dataset_generation.py
 
 The data generated will be stored on the **"./dataset"** folder.
 
-***Visualizing the generated data:**
+**Visualizing the generated data:**
 
 ```bash
 cd scripts
@@ -68,3 +68,5 @@ python3 dataset_visualization.py
 ```
 
 ![Data Visualization](images/screenshot.png)
+
+![Data Visualization Video](https://youtu.be/Od4TWBhuvUU)
