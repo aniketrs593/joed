@@ -69,4 +69,4 @@ python3 dataset_visualization.py
 
 ![Data Visualization](images/screenshot.png)
 
-![Data Visualization Video](https://youtu.be/Od4TWBhuvUU)
+https://youtu.be/Od4TWBhuvUU
