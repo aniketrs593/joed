@@ -4,6 +4,7 @@ import cv2
 
 ENCODE_PARAM = [int(cv2.IMWRITE_JPEG_QUALITY), 100]
 
+
 class DataStorageWriter:
 
     def __init__(self, file_path, sensor_names=["lidar1", "camera_rgb1", "camera_semseg1", "gnss", "bouding_boxes"]):
@@ -14,11 +15,11 @@ class DataStorageWriter:
     
     def write_lidar(self, sensor_name, index, lidar_measurement):
         x, y, z = list(), list(), list()
+        data = []
         for location in lidar_measurement:
-            x.append(location.x)
-            y.append(location.y)
-            z.append(location.z)
-        value = np.hstack([np.array(x).reshape((-1, 1)), np.array(y).reshape((-1, 1)), np.array(z).reshape((-1, 1))])
+            data.append([location.x, location.y, location.z])            
+        value = np.array(data).reshape((-1, 3))
+        # print("WRITING LIDAR", value.shape)
         self.write_matrix(sensor_name, index, value)
     
     def write_gnss(self, sensor_name, index, gnss_data):

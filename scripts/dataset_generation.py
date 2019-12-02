@@ -22,6 +22,30 @@ USE_CASE_4 = 4
 USE_CASE_5 = 5
 
 
+# vehicles list
+VEHICLES_LIST = ['vehicle.audi.a2',
+                 'vehicle.audi.tt',
+                 'vehicle.carlamotors.carlacola',
+                 'vehicle.citroen.c3',
+                 'vehicle.dodge_charger.police',
+                 'vehicle.jeep.wrangler_rubicon',
+                 #'vehicle.nissan.patrol',
+                 'vehicle.ford.mustang',
+                 #'vehicle.bmw.isetta',
+                 'vehicle.audi.etron',
+                 'vehicle.mercedes-benz.coupe',
+                 'vehicle.bmw.grandtourer',
+                 'vehicle.toyota.prius',
+                 #'vehicle.diamondback.century',
+                 'vehicle.tesla.model3',
+                 'vehicle.seat.leon',
+                 'vehicle.lincoln.mkz2017',
+                 'vehicle.volkswagen.t2',
+                 'vehicle.nissan.micra',
+                 'vehicle.chevrolet.impala'
+                ]
+
+
 # Definition of Sensors (Position, Settings)
 
 camera1_parameters = {'x': 0.15, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': -15, 'yaw': -45,
@@ -61,7 +85,7 @@ camera9_parameters = {'x': 0, 'y': 0, 'z': 40, 'roll': 0, 'pitch': -90, 'yaw': 9
                       'sensor_label': 'camera9', 'sensor_type': 'camera'}                      
 
 lidar1_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
-                     'channels': 32, 'range': 100, 'lower_fov': -30, 'upper_fov': 15,
+                     'channels': 32, 'range': 100.0*200, 'lower_fov': -30, 'upper_fov': 15, 'points_per_second': 56000*10, 'rotation_frequency': 30,
                      'sensor_label': 'lidar', 'sensor_type': 'lidar'}
 
 gnss_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
@@ -112,7 +136,7 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
     weather.wind_intensity = 0
     weather.sun_azimuth_angle = 45
     weather.sun_altitude_angle = 100
-    world.set_weather(weather)
+    # world.set_weather(weather)
 
     blueprint_library = world.get_blueprint_library()
     actor_list = list()
@@ -148,21 +172,21 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
         # 4 Opponents - Two way lane
 
         # Same lane
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
         # Other Lane 3 vehicle
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
@@ -175,21 +199,21 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
         # 4 Opponents - Two lanes one way
 
         # Same lane
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
         # Other Lane 3 vehicle
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
@@ -202,25 +226,25 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
         # 5 Opponents - Two Lanes one way, one parallel vehicle
 
         # Same lane
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
         # Other Lane 3 vehicle
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
+        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
         transform = carla.Transform(carla.Location(x=-85, y=-160, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
         opponent_actors.append(world.spawn_actor(bp, transform))
 
@@ -326,7 +350,7 @@ if __name__ == "__main__":
     save_rgb_as_jpeg = True
 
     run_use_case(use_case, output_file_path, SENSOR_LIST,
-                 {"fps": 10,
+                 {"fps": 30,
                   "ego_velocity": 8.3,
                   "opponents_velocities": [4.3, 8.3, 8.3, 8.3, 8.3]},
                  save_rgb_as_jpeg)
