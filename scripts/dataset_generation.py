@@ -80,9 +80,15 @@ camera8_parameters = {'x': -0.2, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': -20,
                       'width': 1024, 'height': 768, 'fov': 70,
                       'sensor_label': 'camera8', 'sensor_type': 'camera'}
 
+# birds-eye view
 camera9_parameters = {'x': 0, 'y': 0, 'z': 40, 'roll': 0, 'pitch': -90, 'yaw': 90,
                       'width': 1024, 'height': 768, 'fov': 70,
-                      'sensor_label': 'camera9', 'sensor_type': 'camera'}                      
+                      'sensor_label': 'camera9', 'sensor_type': 'camera'}
+
+# 3rd person view
+camera9_parameters = {'x': -7, 'y': 0, 'z': 4, 'roll': 0, 'pitch': -25, 'yaw': 0,
+                      'width': 1024, 'height': 768, 'fov': 90,
+                      'sensor_label': 'camera9', 'sensor_type': 'camera'}
 
 lidar1_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
                      'channels': 32, 'range': 100.0*200, 'lower_fov': -30, 'upper_fov': 15, 'points_per_second': 56000*10, 'rotation_frequency': 30,
@@ -96,9 +102,9 @@ gnss_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
 
 # List with all sensors and its configurations to be used in the simulation
 SENSOR_LIST = [camera1_parameters, camera2_parameters, camera3_parameters, camera4_parameters, camera5_parameters, camera6_parameters, camera7_parameters, camera8_parameters,
-               camera9_parameters,
                gnss_parameters,
-               lidar1_parameters, 
+               camera9_parameters,
+               lidar1_parameters
                ]
 
 
@@ -136,7 +142,7 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
     weather.wind_intensity = 0
     weather.sun_azimuth_angle = 45
     weather.sun_altitude_angle = 100
-    # world.set_weather(weather)
+    world.set_weather(weather)
 
     blueprint_library = world.get_blueprint_library()
     actor_list = list()
@@ -261,23 +267,34 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
     try:
         # get all vehicles
         vehicles = world.get_actors().filter('vehicle.*')
+        vehicles_bb = [ego_vehicle] + [v for v in vehicles if v != ego_vehicle]
 
         time.sleep(2)
         
-        print("> Creating data storage file", output_file_path)
-        ds = DataStorageWriter(output_file_path, sensor_labels)
+        print('> Creating data storage file', output_file_path)
+        ds = DataStorageWriter(output_file_path, sensor_labels + ['bounding_box', 'vehicle_position', 'sensor_transform'])
+        ds.write_matrix('bounding_box', 'extent', np.array([ClientSideBoundingBoxes._create_bb_points(vehicle) for vehicle in vehicles_bb]))
+        ds.write_matrix('bounding_box', 'location',
+                        np.array([[vehicle.bounding_box.location.x,
+                                   vehicle.bounding_box.location.y,
+                                   vehicle.bounding_box.location.z] for vehicle in vehicles_bb],dtype=np.float32))
+
+        for idx, params in enumerate(sensor_list):
+            ds.write_matrix('sensor_transform',
+                            sensor_labels[idx],
+                            np.array([params['x'], params['y'], params['z'], params['roll'], params['pitch'], params['yaw']], dtype=np.float32))
         
-        print("> Starting simulation")
+        print('> Starting simulation')
 
-
-        with CarlaSyncMode(world, sensor_actors, fps=sim_params["fps"]) as sync_mode:
+        with CarlaSyncMode(world, sensor_actors, fps=sim_params['fps']) as sync_mode:
             
-            ego_vehicle.set_velocity(carla.Vector3D(0.0, sim_params["ego_velocity"], 0))
+            ego_vehicle.set_velocity(carla.Vector3D(0.0, sim_params['ego_velocity'], 0))
 
             for idx, opponent in enumerate(opponent_actors):
                 opponent.set_velocity(carla.Vector3D(0.0, opponents_velocities[idx], 0))
             
-            for idx in tqdm(range(int(sim_params["fps"])*60)):  # max 1min
+            for idx in tqdm(range(int(sim_params['fps'])*60)):  # max 1min
+            # for idx in range(int(sim_params['fps'])*60):  # max 1min
                 data = sync_mode.tick(timeout=4.0)
 
                 snapshot = data[0]
@@ -306,27 +323,19 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
                         ds.write_lidar(sensor_label, ts, sensor_data)
 
                     if sensor_label.startswith('gnss'):
-                        ds.write_gnss(sensor_label, ts, sensor_data)                
+                        ds.write_gnss(sensor_label, ts, sensor_data)    
 
-                # bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(vehicles, sensor_actors[5])
-                # np_image2 = ClientSideBoundingBoxes.draw_bounding_boxes(np_image, bounding_boxes)
-                                
-                # imgs = []
-                # for idx in range(8):
-                #     img = compute_data_buffer(data[idx*3+1])
-                #     img = cv2.resize(img, None, fx=0.35, fy=0.35)
-                #     # y, x = img.shape[0]//2, img.shape[1]//2
-                #     # img[y-3:y+3, x-3:x+3, :] = (0, 0, 255) 
-                #     imgs.append(img)
-                
-                # img1 = np.concatenate((imgs[7], imgs[0], imgs[1], imgs[2], imgs[3]), axis=1)
-                # img2 = np.concatenate((imgs[7], imgs[6], imgs[5], imgs[4], imgs[3]), axis=1)
-                # img1 = np.concatenate((img1, img2), axis=0)
-
-                # cv2.imshow("img", np_image2)
-                
-                # if cv2.waitKey(1) == ord('q'):
-                #     break
+                # write vehicle position
+                vehicle_pos = np.zeros((len(vehicles_bb), 6))
+                for idx, vehicle in enumerate(vehicles_bb):
+                    transform = vehicle.get_transform()
+                    vehicle_pos[idx, 0] = transform.location.x
+                    vehicle_pos[idx, 1] = transform.location.y
+                    vehicle_pos[idx, 2] = transform.location.z
+                    vehicle_pos[idx, 3] = transform.rotation.roll
+                    vehicle_pos[idx, 4] = transform.rotation.pitch
+                    vehicle_pos[idx, 5] = transform.rotation.yaw
+                ds.write_matrix('vehicle_position', ts, vehicle_pos)
 
                 if abs(ego_vehicle.get_location().y - co_vehicle.get_location().y) < 5:
                     print(">>> collision detected: stopping use case")
@@ -354,4 +363,25 @@ if __name__ == "__main__":
                   "ego_velocity": 8.3,
                   "opponents_velocities": [4.3, 8.3, 8.3, 8.3, 8.3]},
                  save_rgb_as_jpeg)
+
+
+# bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(vehicles, sensor_actors[5])
+# np_image2 = ClientSideBoundingBoxes.draw_bounding_boxes(np_image, bounding_boxes)
+                
+# imgs = []
+# for idx in range(8):
+#     img = compute_data_buffer(data[idx*3+1])
+#     img = cv2.resize(img, None, fx=0.35, fy=0.35)
+#     # y, x = img.shape[0]//2, img.shape[1]//2
+#     # img[y-3:y+3, x-3:x+3, :] = (0, 0, 255) 
+#     imgs.append(img)
+
+# img1 = np.concatenate((imgs[7], imgs[0], imgs[1], imgs[2], imgs[3]), axis=1)
+# img2 = np.concatenate((imgs[7], imgs[6], imgs[5], imgs[4], imgs[3]), axis=1)
+# img1 = np.concatenate((img1, img2), axis=0)
+
+# cv2.imshow("img", np_image2)
+
+# if cv2.waitKey(1) == ord('q'):
+#     break
 

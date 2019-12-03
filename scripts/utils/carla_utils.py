@@ -86,7 +86,7 @@ class CarlaSyncMode(object):
 class ClientSideBoundingBoxes(object):
     """
     This is a module responsible for creating 3D bounding boxes and drawing them
-    client-side on pygame surface.
+    client-side on cv2 image.
     """
 
     @staticmethod
@@ -94,12 +94,72 @@ class ClientSideBoundingBoxes(object):
         """
         Creates 3D bounding boxes based on carla vehicle list and camera.
         """
-
         bounding_boxes = [ClientSideBoundingBoxes.get_bounding_box(vehicle, camera) for vehicle in vehicles]
         # filter objects behind camera
         bounding_boxes = [bb for bb in bounding_boxes if all(bb[:, 2] > 0)]
         return bounding_boxes
 
+    @staticmethod
+    def get_bounding_box(vehicle, camera):
+        """
+        Returns 3D bounding box for a vehicle based on camera view.
+        """
+        bb_cords = ClientSideBoundingBoxes._create_bb_points(vehicle)
+        cords_x_y_z = ClientSideBoundingBoxes._vehicle_to_sensor(bb_cords, vehicle, camera)[:3, :]
+        cords_y_minus_z_x = np.concatenate([cords_x_y_z[1, :], -cords_x_y_z[2, :], cords_x_y_z[0, :]])
+        bbox = np.transpose(np.dot(camera.calibration, cords_y_minus_z_x))
+        camera_bbox = np.concatenate([bbox[:, 0] / bbox[:, 2], bbox[:, 1] / bbox[:, 2], bbox[:, 2]], axis=1)
+        return camera_bbox
+
+    @staticmethod
+    def _vehicle_to_sensor(cords, vehicle, sensor):
+        """
+        Transforms coordinates of a vehicle bounding box to sensor.
+        """
+        world_cord = ClientSideBoundingBoxes._vehicle_to_world(cords, vehicle)
+        sensor_cord = ClientSideBoundingBoxes._world_to_sensor(world_cord, sensor)
+        return sensor_cord
+
+    @staticmethod
+    def _vehicle_to_world(cords, vehicle):
+        """
+        Transforms coordinates of a vehicle bounding box to world.
+        """
+        bb_transform = carla.Transform(vehicle.bounding_box.location)
+        bb_vehicle_matrix = ClientSideBoundingBoxes.get_matrix(bb_transform)
+        vehicle_world_matrix = ClientSideBoundingBoxes.get_matrix(vehicle.get_transform())
+        bb_world_matrix = np.dot(vehicle_world_matrix, bb_vehicle_matrix)
+        world_cords = np.dot(bb_world_matrix, np.transpose(cords))
+        return world_cords
+
+    @staticmethod
+    def _world_to_sensor(cords, sensor):
+        """
+        Transforms world coordinates to sensor.
+        """
+        sensor_world_matrix = ClientSideBoundingBoxes.get_matrix(sensor.get_transform())
+        world_sensor_matrix = np.linalg.inv(sensor_world_matrix)
+        sensor_cords = np.dot(world_sensor_matrix, cords)
+        return sensor_cords
+
+    @staticmethod
+    def _create_bb_points(vehicle):
+        """
+        Returns 3D bounding box for a vehicle.
+        """
+
+        cords = np.zeros((8, 4))
+        extent = vehicle.bounding_box.extent
+        cords[0, :] = np.array([extent.x, extent.y, -extent.z, 1])
+        cords[1, :] = np.array([-extent.x, extent.y, -extent.z, 1])
+        cords[2, :] = np.array([-extent.x, -extent.y, -extent.z, 1])
+        cords[3, :] = np.array([extent.x, -extent.y, -extent.z, 1])
+        cords[4, :] = np.array([extent.x, extent.y, extent.z, 1])
+        cords[5, :] = np.array([-extent.x, extent.y, extent.z, 1])
+        cords[6, :] = np.array([-extent.x, -extent.y, extent.z, 1])
+        cords[7, :] = np.array([extent.x, -extent.y, extent.z, 1])
+        return cords
+    
     @staticmethod
     def draw_bounding_boxes(image, bounding_boxes):
         """
@@ -128,71 +188,6 @@ class ClientSideBoundingBoxes(object):
             image = cv2.line(image, points[3], points[7], (0, 255, 0), 1)
         
         return image
-
-    @staticmethod
-    def get_bounding_box(vehicle, camera):
-        """
-        Returns 3D bounding box for a vehicle based on camera view.
-        """
-
-        bb_cords = ClientSideBoundingBoxes._create_bb_points(vehicle)
-        cords_x_y_z = ClientSideBoundingBoxes._vehicle_to_sensor(bb_cords, vehicle, camera)[:3, :]
-        cords_y_minus_z_x = np.concatenate([cords_x_y_z[1, :], -cords_x_y_z[2, :], cords_x_y_z[0, :]])
-        bbox = np.transpose(np.dot(camera.calibration, cords_y_minus_z_x))
-        camera_bbox = np.concatenate([bbox[:, 0] / bbox[:, 2], bbox[:, 1] / bbox[:, 2], bbox[:, 2]], axis=1)
-        return camera_bbox
-
-    @staticmethod
-    def _create_bb_points(vehicle):
-        """
-        Returns 3D bounding box for a vehicle.
-        """
-
-        cords = np.zeros((8, 4))
-        extent = vehicle.bounding_box.extent
-        cords[0, :] = np.array([extent.x, extent.y, -extent.z, 1])
-        cords[1, :] = np.array([-extent.x, extent.y, -extent.z, 1])
-        cords[2, :] = np.array([-extent.x, -extent.y, -extent.z, 1])
-        cords[3, :] = np.array([extent.x, -extent.y, -extent.z, 1])
-        cords[4, :] = np.array([extent.x, extent.y, extent.z, 1])
-        cords[5, :] = np.array([-extent.x, extent.y, extent.z, 1])
-        cords[6, :] = np.array([-extent.x, -extent.y, extent.z, 1])
-        cords[7, :] = np.array([extent.x, -extent.y, extent.z, 1])
-        return cords
-
-    @staticmethod
-    def _vehicle_to_sensor(cords, vehicle, sensor):
-        """
-        Transforms coordinates of a vehicle bounding box to sensor.
-        """
-
-        world_cord = ClientSideBoundingBoxes._vehicle_to_world(cords, vehicle)
-        sensor_cord = ClientSideBoundingBoxes._world_to_sensor(world_cord, sensor)
-        return sensor_cord
-
-    @staticmethod
-    def _vehicle_to_world(cords, vehicle):
-        """
-        Transforms coordinates of a vehicle bounding box to world.
-        """
-
-        bb_transform = carla.Transform(vehicle.bounding_box.location)
-        bb_vehicle_matrix = ClientSideBoundingBoxes.get_matrix(bb_transform)
-        vehicle_world_matrix = ClientSideBoundingBoxes.get_matrix(vehicle.get_transform())
-        bb_world_matrix = np.dot(vehicle_world_matrix, bb_vehicle_matrix)
-        world_cords = np.dot(bb_world_matrix, np.transpose(cords))
-        return world_cords
-
-    @staticmethod
-    def _world_to_sensor(cords, sensor):
-        """
-        Transforms world coordinates to sensor.
-        """
-
-        sensor_world_matrix = ClientSideBoundingBoxes.get_matrix(sensor.get_transform())
-        world_sensor_matrix = np.linalg.inv(sensor_world_matrix)
-        sensor_cords = np.dot(world_sensor_matrix, cords)
-        return sensor_cords
 
     @staticmethod
     def get_matrix(transform):
@@ -383,3 +378,103 @@ def sensor_factory(world, vehicle, sensor_list, create_all_camera_types=False):
     
     return sensor_actors, sensor_labels
 
+
+## Pose and Transform
+
+def lidar_measurement_to_np_array(lidar_measurement):
+    data = list()
+    for location in lidar_measurement:
+        data.append([location.x, location.y, location.z])            
+    return np.array(data).reshape((-1, 3))
+
+
+def get_rotation_translation_matrix(x=0, y=0, z=0, roll=0, pitch=0, yaw=0):
+    c_y = np.cos(np.radians(yaw))
+    s_y = np.sin(np.radians(yaw))
+    c_r = np.cos(np.radians(roll))
+    s_r = np.sin(np.radians(roll))
+    c_p = np.cos(np.radians(pitch))
+    s_p = np.sin(np.radians(pitch))
+    matrix = np.matrix(np.identity(4))
+    matrix[0, 3] = x
+    matrix[1, 3] = y
+    matrix[2, 3] = z
+    matrix[0, 0] = c_p * c_y
+    matrix[0, 1] = c_y * s_p * s_r - s_y * c_r
+    matrix[0, 2] = -c_y * s_p * c_r - s_y * s_r
+    matrix[1, 0] = s_y * c_p
+    matrix[1, 1] = s_y * s_p * s_r + c_y * c_r
+    matrix[1, 2] = -s_y * s_p * c_r + c_y * s_r
+    matrix[2, 0] = s_p
+    matrix[2, 1] = -c_p * s_r
+    matrix[2, 2] = c_p * c_r
+    return matrix
+
+
+def get_calibration_matrix(params):
+    calibration = np.identity(3)
+    calibration[0, 2] = params['width'] / 2.0
+    calibration[1, 2] = params['height'] / 2.0
+    calibration[0, 0] = calibration[1, 1] = params['width'] / (2.0 * np.tan(params['fov'] * np.pi / 360.0))
+    return calibration
+
+
+
+def get_bbox_vehicle_in_world(vehicle):
+
+    bbox = ClientSideBoundingBoxes._create_bb_points(vehicle)
+    
+    vehicle 
+
+    return None
+
+
+def compute_bouding_boxes(vehicles, 
+                          lidar_params, lidar_measurement,
+                          camera_params, camera_image, camera_sensor):
+    """
+    - a vehicle's bouding box is constant
+    - the pose of all vehicles are in world coordinate system
+    """
+    calibration_matrix = get_calibration_matrix(camera_params)
+
+    ego_vehicle = vehicles[0]
+    co_vehicle = vehicles[1]
+
+    image = compute_data_buffer(camera_image)
+    points = lidar_measurement_to_np_array(lidar_measurement)
+
+    bbox_ego = ClientSideBoundingBoxes._create_bb_points(ego_vehicle)
+    bbox_co = ClientSideBoundingBoxes._create_bb_points(co_vehicle)
+    
+    print('ego pose', ego_vehicle.get_transform())
+    print('bb  pose', ego_vehicle.bounding_box.location)
+    print('cam pose', camera_sensor.get_transform())
+    print('diff', ego_vehicle.get_transform().location.y-camera_sensor.get_transform().location.y )
+
+    bb_cords = bbox_ego
+
+    # Convert bouding box to vehicle coordinate
+
+    # bbox to vehicle
+    bGv = get_rotation_translation_matrix(ego_vehicle.bounding_box.location.x,
+                                          ego_vehicle.bounding_box.location.y,
+                                          ego_vehicle.bounding_box.location.z)
+
+    # vehicle to world
+    vGw = get_rotation_translation_matrix(ego_vehicle.get_transform().location.x,
+                                          ego_vehicle.get_transform().location.y,
+                                          ego_vehicle.get_transform().location.y,
+                                          ego_vehicle.get_transform().rotation.roll,
+                                          ego_vehicle.get_transform().rotation.pitch,
+                                          ego_vehicle.get_transform().rotation.yaw)
+    # print(vGw - bGv)
+
+
+    #print('co  pose', co_vehicle.get_transform(),)
+
+    cv2.imshow("image", image)
+    if cv2.waitKey(1) == ord('q'):
+        return False
+
+    return True

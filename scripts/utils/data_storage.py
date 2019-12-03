@@ -14,7 +14,6 @@ class DataStorageWriter:
             self.groups[group_name] = self.h5.create_group(group_name)
     
     def write_lidar(self, sensor_name, index, lidar_measurement):
-        x, y, z = list(), list(), list()
         data = []
         for location in lidar_measurement:
             data.append([location.x, location.y, location.z])            
@@ -22,12 +21,9 @@ class DataStorageWriter:
         # print("WRITING LIDAR", value.shape)
         self.write_matrix(sensor_name, index, value)
     
-    def write_gnss(self, sensor_name, index, gnss_data):
-        x, y, z = list(), list(), list()
-        x.append(gnss_data.latitude)
-        y.append(gnss_data.longitude)
-        z.append(gnss_data.altitude)
-        value = np.hstack([np.array(x).reshape((-1, 1)), np.array(y).reshape((-1, 1)), np.array(z).reshape((-1, 1))])
+    def write_gnss(self, sensor_name, index, gnss_data):        
+        value = np.array([[gnss_data.latitude, gnss_data.longitude, gnss_data.altitude]])
+        # print("gnss", value)
         self.write_matrix(sensor_name, index, value)
         
     def write_image(self, sensor_name, index, image):
@@ -44,6 +40,9 @@ class DataStorageWriter:
                                     collision_event.normal_impulse.y,
                                     collision_event.normal_impulse.z]).reshape((1, -1)))
     
+    def write_vehicles_position(self, vehicles):
+        pass
+
     def write_matrix(self, sensor_name, index, value):
         self.groups[sensor_name].create_dataset(str(index), data=value, maxshape=value.shape, chunks=True)
     
@@ -71,7 +70,7 @@ class DataStorageReader:
         self.gnss_sensors = tuple([label for label in self.sensor_labels if label.startswith('gnss')])
 
     def get_timestamps_as_string(self):
-        key = self.sensor_labels[0]
+        key = self.rgb_cameras[0]
         return list(self.h5[key].keys())
     
     def get_timestamps(self):
@@ -87,8 +86,28 @@ class DataStorageReader:
     def get_point_cloud(self, sensor_label, index):
         return self.h5[sensor_label][str(index)][:]
     
-    def get_gnss_data(self, sensor_label, index):
-        return
+    def get_gnss(self, sensor_label, index):
+        return self.h5[sensor_label][str(index)][:]
+ 
+    def get_gnss_data(self, sensor_label):
+        ts = self.get_timestamps_as_string()
+        data = np.array([self.h5[sensor_label][t][:, :] for t in ts]).reshape((-1, 3))
+        return data
     
+    def get_bounding_boxes(self):
+        return self.h5['bounding_box/extent'][:]
+    
+    def get_bounding_boxes_locations(self):
+        return self.h5['bounding_box/location'][:]
+    
+    def get_vehicle_position(self, index):
+        return self.h5['vehicle_position'][str(index)][:]
+
+    def get_sensor_transform(self, sensor_label):
+        """
+            x, y, z, roll, pitch, yaw
+        """
+        return self.h5['sensor_transform'][sensor_label][:]
+
     def get_indexes(self):
         self.h5.keys()
