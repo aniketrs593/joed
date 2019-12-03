@@ -1,7 +1,7 @@
 # Data Fusion and Multi-Task Learning
 
 This project intends to study the Data Fusion and Multi-Task Learning
-applied to the detection of danger situations during drive.
+applied to the detection of dangerous situations during drive.
 
 The project is divided in three parts:
 1. Dataset Generation:
