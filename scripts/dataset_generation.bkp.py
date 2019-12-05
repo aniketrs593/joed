@@ -48,53 +48,57 @@ VEHICLES_LIST = ['vehicle.audi.a2',
 
 # Definition of Sensors (Position, Settings)
 
-camera1_parameters = {'x': 0.15, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': -45,
+camera1_parameters = {'x': 0.15, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': -45,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera1', 'sensor_type': 'camera'}
 
-camera2_parameters = {'x': 0.15, 'y': 0.00, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 0,
+camera2_parameters = {'x': 0.15, 'y': 0.00, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 0,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera2', 'sensor_type': 'camera'}
 
-camera3_parameters = {'x': 0.15, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 45,
+camera3_parameters = {'x': 0.15, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 45,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera3', 'sensor_type': 'camera'}
 
-camera4_parameters = {'x': -0.2, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 90,
+camera4_parameters = {'x': -0.2, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 90,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera4', 'sensor_type': 'camera'}
 
-camera5_parameters = {'x': -0.6, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 135,
+camera5_parameters = {'x': -0.6, 'y': 0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 135,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera5', 'sensor_type': 'camera'}
 
-camera6_parameters = {'x': -0.6, 'y': 0.00, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 180,
+camera6_parameters = {'x': -0.6, 'y': 0.00, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 180,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera6', 'sensor_type': 'camera'}
 
-camera7_parameters = {'x': -0.6, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 225,
+camera7_parameters = {'x': -0.6, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 225,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera7', 'sensor_type': 'camera'}
 
-camera8_parameters = {'x': -0.2, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': -10, 'yaw': 270,
+camera8_parameters = {'x': -0.2, 'y': -0.55, 'z': 1.65, 'roll': 0, 'pitch': 0, 'yaw': 270,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera8', 'sensor_type': 'camera'}
 
 # birds-eye view
-camera10_parameters = {'x': 0, 'y': 0, 'z': 30, 'roll': 0, 'pitch': -90, 'yaw': 90,
-                      'width': 1024, 'height': 768, 'fov': 90,
-                      'sensor_label': 'camera10', 'sensor_type': 'camera'}
-
-# 3rd person view
-camera9_parameters = {'x': -7, 'y': 0, 'z': 4, 'roll': 0, 'pitch': -25, 'yaw': 0,
+camera9_parameters = {'x': 0, 'y': 0, 'z': 40, 'roll': 0, 'pitch': -90, 'yaw': 90,
                       'width': 1024, 'height': 768, 'fov': 90,
                       'sensor_label': 'camera9', 'sensor_type': 'camera'}
 
-lidar1_parameters = {'x': 0, 'y': 0, 'z': 2.0, 'roll': 0, 'pitch': 0, 'yaw': 0,
-                     'channels': 32, 'range': 100.0*200, 'lower_fov': -30, 'upper_fov': 15, 'points_per_second': 56000*10, 'rotation_frequency': 30,
-                     'sensor_label': 'lidar', 'sensor_type': 'lidar'}
+# 3rd person view
+camera9_parameters = {'x': -7, 'y': 0, 'z': 20, 'roll': 0, 'pitch': -90, 'yaw': 0,
+                      'width': 1024, 'height': 768, 'fov': 90,
+                      'sensor_label': 'camera9', 'sensor_type': 'camera'}
 
-gnss_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
+lidar1_parameters = {'x': 0, 'y': 0, 'z': 2.80, 'roll': 0, 'pitch': 0, 'yaw': 0,
+                     'channels': 64, 'range': 100.0*200, 'lower_fov': -30, 'upper_fov': 10, 'points_per_second': 1000000, 'rotation_frequency': 30,
+                     'sensor_label': 'lidar1', 'sensor_type': 'lidar'}
+
+lidar2_parameters = {'x': 0, 'y': 0.60, 'z': 1.90, 'roll': 0, 'pitch': 0, 'yaw': 0,
+                     'channels': 64, 'range': 100.0*200, 'lower_fov': -35, 'upper_fov': 0, 'points_per_second': 56000*20, 'rotation_frequency': 30,
+                     'sensor_label': 'lidar2', 'sensor_type': 'lidar'}
+
+gnss_parameters = {'x': 0, 'y': 0, 'z': 0, 'roll': 0, 'pitch': 0, 'yaw': 0,
                    'sensor_label': 'gnss', 'sensor_type': 'gnss'}
 
 # imu_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0, 'sensor_label': 'imu', 'sensor_type': 'imu'}
@@ -104,8 +108,8 @@ gnss_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
 SENSOR_LIST = [camera1_parameters, camera2_parameters, camera3_parameters, camera4_parameters, camera5_parameters, camera6_parameters, camera7_parameters, camera8_parameters,
                gnss_parameters,
                camera9_parameters,
-               camera10_parameters,
-               lidar1_parameters
+               lidar1_parameters,
+               lidar2_parameters,
                ]
 
 
@@ -347,20 +351,16 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
                     break
     finally:
         
-        try:
-            ds.close()
-        except:
-            pass
-
         print("> Cleaning Simulation")        
+        ds.close()
         for actor in actor_list:
             actor.destroy()
         cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    output_file_path = "../dataset/data_usecase3.h5"
-    use_case = USE_CASE_4
+    output_file_path = "../dataset/data_usecase2.h5"
+    use_case = USE_CASE_2
     save_rgb_as_jpeg = True
 
     run_use_case(use_case, output_file_path, SENSOR_LIST,
@@ -389,3 +389,4 @@ if __name__ == "__main__":
 
 # if cv2.waitKey(1) == ord('q'):
 #     break
+

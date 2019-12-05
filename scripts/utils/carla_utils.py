@@ -310,8 +310,8 @@ def create_lidar_sensor(world, vehicle, params):
     # bp.set_attribute('channels', str(params['channels']))
     # bp.set_attribute('points_per_second', str(params['points_per_second']))
     # bp.set_attribute('range', str(params['range']))
-    # bp.set_attribute('upper_fov', str(params['upper_fov']))
-    # bp.set_attribute('lower_fov', str(params['lower_fov']))
+    bp.set_attribute('upper_fov', str(params['upper_fov']))
+    bp.set_attribute('lower_fov', str(params['lower_fov']))
 
     return world.spawn_actor(bp, transform, attach_to=vehicle)
 
