@@ -133,7 +133,7 @@ def get_lidar_projected_on_image(points, lidar_transform, camera_transform, vehi
 
 
 
-input_file_path = "../dataset/data_usecase3.h5"
+input_file_path = "../dataset/data_usecase6.h5"
 
 
 reader = DataStorageReader(input_file_path)
@@ -199,8 +199,11 @@ CAM_AXIS = {'rgb_camera1': [1.0, 1.0],
 global enable_point_on_image
 enable_point_on_image = True
 
+global out_video
+out_video = None
+
 def update():
-    global COUNTER, enable_point_on_image
+    global COUNTER, enable_point_on_image, out_video
     idx = indexes[COUNTER]
 
     points = reader.get_point_cloud(reader.lidars[0], idx)
@@ -217,13 +220,24 @@ def update():
         images.append(img)
     
     print("image", len(images))
-    img1 = np.concatenate((images[7], images[0], images[1], images[2], images[3], images[-2]), axis=1)
-    img2 = np.concatenate((images[7], images[6], images[5], images[4], images[3], images[-1]), axis=1)
-    img3 = np.concatenate((img1, img2), axis=0)
-    cv2.imshow('img', cv2.resize(img3, None, fx=0.4, fy=0.4))
+    # img1 = np.concatenate((images[7], images[0], images[1], images[2], images[3], images[-2]), axis=1)
+    # img2 = np.concatenate((images[7], images[6], images[5], images[4], images[3], images[-1]), axis=1)
+    # img3 = np.concatenate((img1, img2), axis=0)
+    img1 = np.concatenate((images[0], images[1], images[2]), axis=1)
+    img2 = np.concatenate((images[7], images[-2], images[3]), axis=1)
+    img3 = np.concatenate((images[6], images[5], images[4]), axis=1)
+    img4 = np.concatenate((img1, img2, img3), axis=0)
+    cv2.imshow('img', cv2.resize(img4, None, fx=0.8, fy=0.8))
+
+    img4 = cv2.resize(img4, None, fx=0.7, fy=0.7)
+    if out_video is None:
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out_video = cv2.VideoWriter('output101.avi', fourcc, 30.0, (img4.shape[1], img4.shape[0]))
+    out_video.write(img4)
 
     key = cv2.waitKey(1)
     if key == ord('q'):
+        out_video.release()
         exit(1)
     elif key == ord('l'):
         enable_point_on_image = not enable_point_on_image
@@ -245,4 +259,3 @@ t = QtCore.QTimer()
 t.timeout.connect(update)
 t.start(30)
 QtGui.QApplication.instance().exec_()
-

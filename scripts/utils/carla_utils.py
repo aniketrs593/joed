@@ -158,7 +158,7 @@ class ClientSideBoundingBoxes(object):
         cords[5, :] = np.array([-extent.x, extent.y, extent.z, 1])
         cords[6, :] = np.array([-extent.x, -extent.y, extent.z, 1])
         cords[7, :] = np.array([extent.x, -extent.y, extent.z, 1])
-        return cords
+        return cords 
     
     @staticmethod
     def draw_bounding_boxes(image, bounding_boxes):

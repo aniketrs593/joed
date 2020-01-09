@@ -9,17 +9,7 @@ import cv2
 from tqdm import tqdm
 
 sys.path.append("../simulator/carla/PythonAPI/carla/dist/carla-0.9.6-py3.5-linux-x86_64.egg")
-
 import carla
-
-
-# Use Case Definition
-
-USE_CASE_1 = 1
-USE_CASE_2 = 2
-USE_CASE_3 = 3
-USE_CASE_4 = 4
-USE_CASE_5 = 5
 
 
 # vehicles list
@@ -97,9 +87,6 @@ lidar1_parameters = {'x': 0, 'y': 0, 'z': 2.0, 'roll': 0, 'pitch': 0, 'yaw': 0,
 gnss_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0,
                    'sensor_label': 'gnss', 'sensor_type': 'gnss'}
 
-# imu_parameters = {'x': 1.5, 'y': 0, 'z': 2.4, 'roll': 0, 'pitch': 0, 'yaw': 0, 'sensor_label': 'imu', 'sensor_type': 'imu'}
-# collision_parameters = {'sensor_label': 'collision', 'sensor_type': 'collision'}
-
 # List with all sensors and its configurations to be used in the simulation
 SENSOR_LIST = [camera1_parameters, camera2_parameters, camera3_parameters, camera4_parameters, camera5_parameters, camera6_parameters, camera7_parameters, camera8_parameters,
                gnss_parameters,
@@ -109,16 +96,14 @@ SENSOR_LIST = [camera1_parameters, camera2_parameters, camera3_parameters, camer
                ]
 
 
-def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_params: dict,
+def run_use_case_train(num_vehicles: int, skip_frames: int, output_file_path: str, sensor_list: list, sim_params: dict,
                  save_rgb_as_jpeg: bool = True) -> None:
     """
-        run the simulation for a specific use case
-
-
+        run the simulation for training dataset
+            - ego vehicle moves
+            
         parameters
         ==========
-
-        use_case: use case number (1-4)
 
         output_file_path: str
 
@@ -135,142 +120,86 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
 
     world = client.get_world()
 
+    spawn_points = world.get_map().get_spawn_points()
+    start_pose = random.choice(world.get_map().get_spawn_points())
+    spawn_points.remove(start_pose)
+    waypoint = world.get_map().get_waypoint(start_pose.location)
+
     print("> Configuring weather conditions")
     weather = world.get_weather()
-    weather.cloudyness = 0
+    weather.cloudyness = 0.5
     weather.precipitation = 0
     weather.precipitation_deposits = 0
-    weather.wind_intensity = 0
-    weather.sun_azimuth_angle = 45
+    weather.wind_intensity = 1.0
+    weather.sun_azimuth_angle = 30
     weather.sun_altitude_angle = 100
     world.set_weather(weather)
 
     blueprint_library = world.get_blueprint_library()
     actor_list = list()
+    vehicles_list = list()
 
     print("> Creating Vehicles")
-    print(">> Creating EGO vehicle")
+    SpawnActor = carla.command.SpawnActor
+    SetAutopilot = carla.command.SetAutopilot
+    FutureActor = carla.command.FutureActor
+
+    number_of_spawn_points = len(spawn_points)
+    
+    NUMBER_OF_VEHICLES = num_vehicles
+
+    batch = []
 
     bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
-    transform = carla.Transform(carla.Location(x=-88.5, y=-160, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-    ego_vehicle = world.spawn_actor(bp, transform)
-    actor_list.append(ego_vehicle)
+    if bp.has_attribute('color'):
+        color = random.choice(bp.get_attribute('color').recommended_values)
+        bp.set_attribute('color', color)
+    if bp.has_attribute('driver_id'):
+        driver_id = random.choice(bp.get_attribute('driver_id').recommended_values)
+        bp.set_attribute('driver_id', driver_id)
+    bp.set_attribute('role_name', 'autopilot')
+    transform = random.choice(world.get_map().get_spawn_points())
+    actor = SpawnActor(bp, transform).then(SetAutopilot(FutureActor, True))
+    batch.append(actor)
 
-    print(">>> Creating and attaching sensors to EGO")
-
-    sensor_actors, sensor_labels = sensor_factory(world, ego_vehicle, sensor_list) 
-    
-    actor_list += sensor_actors
-
-    print(">> Creating Opponents")
-
-    opponent_actors = list()
-    opponents_velocities = list()
-
-    if use_case == USE_CASE_1:
-        # 1 Opponent - Same Direction
-
-        bp = random.choice(blueprint_library.filter('vehicle.tesla.*'))
-        transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-        opponents_velocities.append(sim_params["opponents_velocities"][0])
-        
-    elif use_case == USE_CASE_2:
-        # 4 Opponents - Two way lane
-
-        # Same lane
+    for n, transform in enumerate(spawn_points):
+        if n >= NUMBER_OF_VEHICLES:
+            break
         bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
+        if bp.has_attribute('color'):
+            color = random.choice(bp.get_attribute('color').recommended_values)
+            bp.set_attribute('color', color)
+        if bp.has_attribute('driver_id'):
+            driver_id = random.choice(bp.get_attribute('driver_id').recommended_values)
+            bp.set_attribute('driver_id', driver_id)
+        bp.set_attribute('role_name', 'autopilot')
+        actor = SpawnActor(bp, transform).then(SetAutopilot(FutureActor, True))
+        batch.append(actor)
+    for response in client.apply_batch_sync(batch):
+        if response.error:
+            print(">>ERROR: ", response.error)
+        else:
+            vehicles_list.append(response.actor_id)
 
-        # Other Lane 3 vehicle
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0 + 180, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        opponents_velocities.append(sim_params["opponents_velocities"][0])
-        opponents_velocities.append(-sim_params["opponents_velocities"][1])        
-        opponents_velocities.append(-sim_params["opponents_velocities"][2])
-        opponents_velocities.append(-sim_params["opponents_velocities"][3])
-
-    elif use_case == USE_CASE_3:
-        # 4 Opponents - Two lanes one way
-
-        # Same lane
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        # Other Lane 3 vehicle
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        opponents_velocities.append(sim_params["opponents_velocities"][0])
-        opponents_velocities.append(sim_params["opponents_velocities"][1])        
-        opponents_velocities.append(sim_params["opponents_velocities"][2])
-        opponents_velocities.append(sim_params["opponents_velocities"][3])
-
-    elif use_case == USE_CASE_4:
-        # 5 Opponents - Two Lanes one way, one parallel vehicle
-
-        # Same lane
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-88.5, y=-120, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        # Other Lane 3 vehicle
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-130, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-60, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=0, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        bp = random.choice(blueprint_library.filter(random.choice(VEHICLES_LIST)))
-        transform = carla.Transform(carla.Location(x=-85, y=-160, z=0.8), carla.Rotation(pitch=0.000000, yaw=90.0, roll=0.000000))
-        opponent_actors.append(world.spawn_actor(bp, transform))
-
-        opponents_velocities.append(sim_params["opponents_velocities"][0])
-        opponents_velocities.append(sim_params["opponents_velocities"][1])        
-        opponents_velocities.append(sim_params["opponents_velocities"][2])
-        opponents_velocities.append(sim_params["opponents_velocities"][3])
-        opponents_velocities.append(sim_params["opponents_velocities"][4])
-
-
-    co_vehicle = opponent_actors[0]
-    actor_list += opponent_actors
+    #actor_list += opponent_actors
 
     try:
-        # get all vehicles
-        vehicles = [ego_vehicle] + opponent_actors # world.get_actors().filter('vehicle.*')
-        vehicles_bb = [v for v in vehicles]
-
         time.sleep(2)
+        # get all vehicles
+        vehicles = world.get_actors().filter('vehicle.*')
+        #vehicles = [v for v in vehicles if v != ego_vehicle]
+        vehicles = [v for v in vehicles]
+        print('> Vehicles number', len(vehicles))
+        time.sleep(2)
+        ego_vehicle = vehicles[0]
+
+        print(">>> Creating and attaching sensors to EGO")
+
+        sensor_actors, sensor_labels = sensor_factory(world, ego_vehicle, sensor_list)
+        actor_list += sensor_actors
+
+        #vehicles = [ego_vehicle] + [v for v in vehicles]
+        vehicles_bb = [v for v in vehicles]
         
         print('> Creating data storage file', output_file_path)
         ds = DataStorageWriter(output_file_path, sensor_labels + ['bounding_box', 'vehicle_position', 'sensor_transform',
@@ -291,14 +220,16 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
         print('> Starting simulation')
 
         with CarlaSyncMode(world, sensor_actors, fps=sim_params['fps']) as sync_mode:
-            
-            ego_vehicle.set_velocity(carla.Vector3D(0.0, sim_params['ego_velocity'], 0))
-
-            for idx, opponent in enumerate(opponent_actors):
-                opponent.set_velocity(carla.Vector3D(0.0, opponents_velocities[idx], 0))
-            
-            for idx in tqdm(range(int(sim_params['fps'])*60)):  # max 1min
+        
+            should_quit = False
+            for idx in tqdm(range(int(sim_params['fps'])*600)):  # max 1min
             # for idx in range(int(sim_params['fps'])*60):  # max 1min
+                
+                # for _ in range(skip_frames):
+                #     data = sync_mode.tick(timeout=1.0)
+                if should_quit:
+                    break
+
                 data = sync_mode.tick(timeout=4.0)
 
                 snapshot = data[0]
@@ -316,14 +247,15 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
                         else:
                             ds.write_image(sensor_label, ts, compute_data_buffer(sensor_data))
 
-                        if "10" in sensor_label:
+                        if "camera9" in sensor_label:
                             bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(vehicles, sensor_actors[idx])
                             np_image = compute_data_buffer(sensor_data)
-                            print("np_image", np_image.shape)
+                            # print("np_image", np_image.shape)
                             np_image2 = ClientSideBoundingBoxes.draw_bounding_boxes(np_image, bounding_boxes)
 
                             cv2.imshow("img", np_image2)
-                            cv2.waitKey(1)
+                            if cv2.waitKey(1) == ord('q'):
+                                should_quit = True
 
                     if sensor_label.startswith('depth'):
                         ds.write_matrix(sensor_label, ts, compute_depth_from_buffer(sensor_data))
@@ -336,8 +268,8 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
                         ds.write_lidar(sensor_label, ts, sensor_data)
 
                     if sensor_label.startswith('gnss'):
-                        ds.write_gnss(sensor_label, ts, sensor_data)    
-
+                        ds.write_gnss(sensor_label, ts, sensor_data)
+                
                 # write vehicle position
                 vehicle_pos = np.zeros((len(vehicles_bb), 6))
                 for idx, vehicle in enumerate(vehicles_bb):
@@ -350,20 +282,14 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
                     vehicle_pos[idx, 5] = transform.rotation.yaw
                 ds.write_matrix('vehicle_position', ts, vehicle_pos)
 
-                if abs(ego_vehicle.get_location().y - co_vehicle.get_location().y) < 5:
-                    print(">>> collision detected: stopping use case")
-                    break
-
-                if ego_vehicle.get_location().y > 140:
-                    print(">>> ego vehicle is out of limits")
-                    break
-
     finally:
         
         try:
             ds.close()
         except:
             pass
+
+        client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])
 
         print("> Cleaning Simulation")        
         for actor in actor_list:
@@ -372,33 +298,15 @@ def run_use_case(use_case: str, output_file_path: str, sensor_list: list, sim_pa
 
 
 if __name__ == "__main__":
-    output_file_path = "../dataset/data_usecase5.h5"
-    use_case = USE_CASE_4
-    save_rgb_as_jpeg = True
 
-    run_use_case(use_case, output_file_path, SENSOR_LIST,
-                 {"fps": 30,
-                  "ego_velocity": 9.3,
-                  "opponents_velocities": [4.3, 8.3, 8.3, 8.3, 8.3]},
-                 save_rgb_as_jpeg)
+    for idx_train in range(15):
+        output_file_path = "../dataset/ext/train%02d.h5" % (idx_train+29)
+    
+        save_rgb_as_jpeg = True
+        num_vehicles = 30
+        skip_frames = 10
 
+        run_use_case_train(num_vehicles, skip_frames,
+                           output_file_path, SENSOR_LIST,
+                           {"fps": 1}, save_rgb_as_jpeg)
 
-# bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(vehicles, sensor_actors[5])
-# np_image2 = ClientSideBoundingBoxes.draw_bounding_boxes(np_image, bounding_boxes)
-                
-# imgs = []
-# for idx in range(8):
-#     img = compute_data_buffer(data[idx*3+1])
-#     img = cv2.resize(img, None, fx=0.35, fy=0.35)
-#     # y, x = img.shape[0]//2, img.shape[1]//2
-#     # img[y-3:y+3, x-3:x+3, :] = (0, 0, 255) 
-#     imgs.append(img)
-
-# img1 = np.concatenate((imgs[7], imgs[0], imgs[1], imgs[2], imgs[3]), axis=1)
-# img2 = np.concatenate((imgs[7], imgs[6], imgs[5], imgs[4], imgs[3]), axis=1)
-# img1 = np.concatenate((img1, img2), axis=0)
-
-# cv2.imshow("img", np_image2)
-
-# if cv2.waitKey(1) == ord('q'):
-#     break
